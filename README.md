@@ -34,3 +34,7 @@ Open the URL Vite prints (normally `http://localhost:5173`). The FastAPI API is 
 This is an MVP, not a comprehensive news archive. Publisher pages may block automated fetching, require a subscription, render client-side, or rate-limit requests. In those cases the app records a source notice and omits inaccessible article text. YouTube search depends on its public results-page format, and captions are included only when YouTube makes them available.
 
 The scraper design is deliberately modular: add source implementations in `backend/scraper/`, then call them from `backend/main.py`. A future extraction or classification layer can run after this collection step without changing the saved-source schema.
+
+## SEC filings pipeline
+
+AI keyword measures from 10-K / 10-Q / S-1 filings for the company list: see [`edgar/README.md`](edgar/README.md).

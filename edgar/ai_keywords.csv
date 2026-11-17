@@ -1,0 +1,48 @@
+term,category,counts_toward_ai_total,source,case_sensitive,regex,note
+artificial intelligence,core_ai,yes,"Ashraf (2025, RAST)",no,artificial[- ]intelligen\w*,
+AI (acronym),core_ai,yes,Team addition (GenAI era),yes,(?<![\w.-])A\.?I\.?(?!\w|\.\w),"Case-sensitive. Skipped in sentences that use AI for other things (aromatase inhibitor, American Indian, etc.)."
+"AI-<adjective> (AI-powered, AI-driven, AI-enabled, AI-based, AI-first)",core_ai,yes,Team addition (GenAI era),yes,\bAI[- ](?:powered|driven|enabled|based|first|native|assisted|generated|related|ready)\b,
+AI tech / AI technology,core_ai,yes,"Ashraf (2025, RAST)",no,\bAI[- ]tech\w*,
+AI related,core_ai,yes,"Ashraf (2025, RAST)",no,\bAI[- ]related\b,
+conversational AI,core_ai,yes,"Ashraf (2025, RAST)",no,\bconversational AI\b,
+evolutionary AI / computing,core_ai,yes,"Ashraf (2025, RAST)",no,\bevolutionary (?:AI|comput\w+),
+intelligent system,core_ai,yes,"Ashraf (2025, RAST)",no,\bintelligent systems?\b,
+cognitive computing,core_ai,yes,"Ashraf (2025, RAST)",no,\bcognitive comput\w+,
+machine learning,core_ai,yes,"Ashraf (2025, RAST)",no,\bmachine[- ]learn\w*,
+deep learning,core_ai,yes,"Ashraf (2025, RAST)",no,\bdeep[- ]learn\w*,
+neural network,core_ai,yes,"Ashraf (2025, RAST)",no,\bneural[- ]net\w*,
+generative AI,genai,yes,Team addition (GenAI era),no,\bgenerative (?:AI|artificial intelligence|models?)\b|\bGen[- ]?AI\b,
+large language model / LLM,genai,yes,Team addition (GenAI era),no,\blarge language models?\b|\bLLMs?\b,
+foundation model,genai,yes,Team addition (GenAI era),no,\bfoundation(?:al)? models?\b,
+transformer model,genai,yes,Team addition (GenAI era),no,\btransformer(?:-based)? (?:models?|architecture)\b,
+GPT / ChatGPT,genai,yes,Team addition (GenAI era),no,\bChat ?GPT\b|\bGPT-?\d(?:\.\d)?o?\b,
+copilot,genai,yes,Team addition (GenAI era),no,\bcopilots?\b,Mostly Microsoft/GitHub Copilot; occasionally aviation.
+AI agent / agentic,genai,yes,Team addition (GenAI era),no,\bAI agents?\b|\bagentic\b,
+AI assistant,genai,yes,Team addition (GenAI era),no,\bAI assistants?\b,
+chatbot,genai,yes,Team addition (GenAI era),no,\bchat ?bots?\b,
+retrieval-augmented generation,genai,yes,Team addition (GenAI era),no,\bretrieval[- ]augmented generation\b|\bRAG\b(?= (?:pipeline|system|model)),
+prompt engineering,genai,yes,Team addition (GenAI era),no,\bprompt engineer\w*,
+"AI vendors (OpenAI, Anthropic)",genai,yes,Team addition (GenAI era),no,\bOpenAI\b|\bAnthropic\b,Vendor names; signal adoption/partnership. Gemini/Claude excluded as too ambiguous.
+natural language processing / NLP,ai_methods,yes,"Ashraf (2025, RAST)",no,\bnatural[- ]language[- ]process\w*|\bNLP\b,
+natural language understanding / generation,ai_methods,yes,Team addition (GenAI era),no,\bnatural[- ]language (?:understanding|generation)\b,
+computer vision,ai_methods,yes,"Ashraf (2025, RAST)",no,\bcomputer vision\b|\bmachine vision\b,
+image recognition,ai_methods,yes,"Ashraf (2025, RAST)",no,\bimage recognition\b,
+facial recognition,ai_methods,yes,"Ashraf (2025, RAST)",no,\bfac(?:ial|e) recognition\b,
+speech / voice recognition,ai_methods,yes,"Ashraf (2025, RAST)",no,\b(?:speech|voice) recognition\b,
+virtual agent,ai_methods,yes,"Ashraf (2025, RAST)",no,\bvirtual agents?\b,
+virtual assistant,ai_methods,yes,"Ashraf (2025, RAST)",no,\bvirtual assistants?\b,
+reinforcement learning,ai_methods,yes,"Babina et al. (2024, JFE)",no,\breinforcement learning\b,
+supervised / unsupervised learning,ai_methods,yes,"Babina et al. (2024, JFE)",no,\b(?:un|semi-)?supervised learning\b,
+predictive model / predictive analytics,ai_methods,no,Team addition (GenAI era),no,\bpredictive (?:model\w*|analytics)\b,"Often traditional statistics; reported separately, not in ai_total."
+biometric,ai_methods,no,"Ashraf (2025, RAST)",no,\bbiometric\w*,In Ashraf's list but in filings is mostly privacy law (BIPA) risk language; kept out of ai_total.
+TensorFlow / PyTorch / Keras / scikit-learn,ai_tools,yes,"Babina et al. (2024, JFE)",no,\b(?:TensorFlow|PyTorch|Keras|scikit-learn|Hugging ?Face)\b,
+"ML algorithms (random forest, gradient boosting, SVM)",ai_tools,yes,"Babina et al. (2024, JFE)",no,\brandom forests?\b|\bgradient boost\w*|\bsupport vector machines?\b,
+AI infrastructure / compute / GPU,ai_tools,yes,Team addition (GenAI era),no,\bAI (?:infrastructure|compute|computing|chips?|accelerators?|data cent(?:er|re)s?)\b|\bGPUs?\b,GPU mentions can be gaming/graphics for hardware makers; check by industry.
+data science / data scientist,ai_tools,no,"Babina et al. (2024, JFE)",no,\bdata scien\w+,Broad; reported separately.
+robotic process automation / RPA,automation,no,"Ashraf (2025, RAST)",no,\brobotic process automation\b|\bRPA\b,
+intelligent automation,automation,no,"Ashraf (2025, RAST)",no,\bintelligent automation\b,
+process automation,automation,no,"Ashraf (2025, RAST)",no,\bprocess automation\b,
+marketing automation,automation,no,"Ashraf (2025, RAST)",no,\bmarketing automation\b,
+automation solutions,automation,no,"Ashraf (2025, RAST)",no,\bautomation solutions?\b,
+autonomous tech / autonomous,automation,no,"Ashraf (2025, RAST)",no,\bautonomous\w*,"Very noisy (autonomous region, autonomous vehicles)."
+automat* (catch-all),automation,no,"Ashraf (2025, RAST)",no,\bautomat\w*,Ashraf's catch-all; captures automation/automate/automatically. Use only as the automation measure.
