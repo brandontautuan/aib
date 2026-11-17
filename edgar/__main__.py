@@ -13,6 +13,8 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import json
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -67,10 +69,36 @@ def cmd_match(a):
     print("Rows with needs_check=yes should be hand-verified (or fill CIK from Compustat and re-run).")
 
 
+EX13_RE = re.compile(r"ex[-_]?13(?![\d])|exhibit[-_ ]?13(?![\d])", re.I)
+SHORT_10K_WORDS = 25000
+
+
+def _exhibit13(client: SecClient, f: Filing) -> list[str]:
+    """Some 10-Ks (IBM, many banks/industrials) incorporate the annual report -- MD&A, business review --
+    by reference as Exhibit 13. Return the exhibit's URL(s) from the filing index, if any."""
+    base = f.url.rsplit("/", 1)[0]
+    try:
+        items = json.loads(client.get(base + "/index.json"))["directory"]["item"]
+    except Exception:
+        return []
+    return [f"{base}/{it['name']}" for it in items
+            if EX13_RE.search(it["name"]) and it["name"].lower().endswith((".htm", ".html", ".txt"))]
+
+
 def _process(client: SecClient, firm: dict, f: Filing) -> tuple[dict, list[dict]]:
     raw = client.get(f.url)
     tagged = tag_sentences(html_to_text(raw), f.form)
+    ex13 = []
+    if f.form.startswith("10-K") and sum(len(t.split()) for _, t in tagged) < SHORT_10K_WORDS:
+        for url in _exhibit13(client, f):
+            try:
+                tagged += [("exhibit13_" + sec if sec != "front" else "exhibit13", t)
+                           for sec, t in tag_sentences(html_to_text(client.get(url)), "10-K")]
+                ex13.append(url)
+            except Exception:
+                pass
     row, sents = measure_filing(tagged)
+    row["included_exhibit13"] = int(bool(ex13))
     meta = {"gvkey": firm.get("gvkey", ""), "cik": f.cik, "company": firm.get("company", ""), "sec_name": f.company,
             "form": f.form, "filing_date": f.filing_date, "report_date": f.report_date, "accession": f.accession, "url": f.url}
     return {**meta, **row}, [{**{k: meta[k] for k in SENT_META}, **s} for s in sents]
@@ -123,6 +151,8 @@ def cmd_run(a):
 
 def cmd_panel(a):
     import pandas as pd
+    if not a.filings.exists() or a.filings.stat().st_size == 0:
+        raise SystemExit(f"{a.filings} not found or empty -- run `python -m edgar run ...` first (see errors.csv there).")
     df = pd.read_csv(a.filings, dtype={"gvkey": str, "cik": str})
     period = df["report_date"].fillna("").where(df["report_date"].fillna("") != "", df["filing_date"])
     df["year"] = period.str[:4].astype(int)
@@ -130,7 +160,10 @@ def cmd_panel(a):
         {"10-K": "annual", "20-F": "annual", "40-F": "annual", "10-Q": "quarterly",
          "S-1": "ipo", "F-1": "ipo", "424B4": "ipo"}).fillna("other")
     sums = [c for c in df.columns if c.startswith(("n_", "ai_in_")) or c in
-            ("total_words", "ai_total", "ai_sentences", "ai_spend_sentences", "ai_adoption_sentences", "ai_risk_sentences")]
+            ("total_words", "ai_total", "ai_sentences", "ai_spend_sentences", "ai_adoption_sentences",
+             "ai_product_sentences", "ai_risk_sentences")]
+    for c in sums:  # older outputs may hold True/False strings
+        df[c] = pd.to_numeric(df[c].replace({"True": 1, "False": 0, True: 1, False: 0}), errors="coerce").fillna(0)
     g = df.groupby(["gvkey", "cik", "year"], dropna=False)
     panel = g[sums].sum()
     panel["n_filings"] = g.size()

@@ -151,3 +151,60 @@ def test_shared_name_prefers_listed_registrant(client):
     assert rows[0]["cik"] == "19617" and rows[0]["needs_check"] == "no"     # listed registrant wins (not lexicographic "1325347")
     assert rows[1]["needs_check"] == "yes"                                   # neither listed in fixture -> flagged for --resolve
     assert rows[2]["likely_fund"] == "yes" and rows[0]["likely_fund"] == "no"
+
+
+def test_pilot_regressions():
+    """Bugs found in the Nov 16 live pilot (118 real filings)."""
+    # 1) one AI sentence -> counts must be ints, not True/False
+    row, _ = measure_filing([("mdna", "We invested $2 million in machine learning tools for our finance team.")])
+    assert row["ai_spend_sentences"] == 1 and type(row["ai_spend_sentences"]) is int
+    # 2) bullet lists split into separate sentences
+    tagged = tag_sentences("Item 1A. Risk Factors\n• AI system failures could disrupt operations and harm clients. "
+                           "• Competitors may deploy AI more quickly than we can respond to it.", "10-K")
+    assert len(tagged) == 2
+    # 3) flattened tables are dropped
+    tagged = tag_sentences("Item 7. Management's Discussion\n(In millions) 2025 2024 Interest $ 2,647 $ 3,157 "
+                           "Other, net ( 4,725 ) ( 1,319 ) losses on investments including OpenAI 12 34 56 78 90.", "10-K")
+    assert tagged == []
+    # 4) bare headings (cross-reference layouts like JPMorgan / IBM)
+    tagged = tag_sentences("Management's discussion and analysis\nWe use artificial intelligence to review documents.", "10-K")
+    assert tagged[0][0] == "mdna"
+    # 5) own use vs selling AI
+    _, s = measure_filing([("business", "Our use of generative AI across back-office operations reduced processing time."),
+                           ("business", "Azure AI Studio provides tools customers can use to build AI models for their apps.")])
+    assert (s[0]["adoption"], s[0]["product"]) == (1, 0)
+    assert (s[1]["adoption"], s[1]["product"]) == (0, 1)
+
+
+def test_exhibit13_and_panel_coercion(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(cli, "SecClient", lambda **kw: SecClient(cache_dir=client.cache_dir, offline=True))
+    base = "https://www.sec.gov/Archives/edgar/data/51143/000005114325000010"
+    sub = {"name": "IBM", "filings": {"recent": {"accessionNumber": ["0000051143-25-000010"], "filingDate": ["2025-02-25"],
+           "reportDate": ["2024-12-31"], "form": ["10-K"], "primaryDocument": ["ibm-20241231.htm"]}, "files": []}}
+    seed(client, SUBMISSIONS_URL.format(cik=51143), json.dumps(sub).encode())
+    seed(client, base + "/ibm-20241231.htm", b"<html><body><p>Item 1. Business</p><p>Information is incorporated by reference to the Annual Report.</p></body></html>")
+    seed(client, base + "/index.json", json.dumps({"directory": {"item": [{"name": "ibm-20241231.htm"}, {"name": "ibm-20241231xex13.htm"}]}}).encode())
+    seed(client, base + "/ibm-20241231xex13.htm", b"<html><body><p>Management Discussion</p>"
+         b"<p>We deployed AI agents across our HR operations, automating routine employee requests.</p></body></html>")
+    comp = tmp_path / "c.csv"
+    comp.write_text("company,gvkey,cik,needs_check\nINTL BUSINESS MACHINES CORP,006066,51143,no\n")
+    out = tmp_path / "out"
+    cli.main(["run", str(comp), "--outdir", str(out), "--offline", "--workers", "1"])
+    f = list(csv.DictReader((out / "filings.csv").open()))[0]
+    assert f["included_exhibit13"] == "1" and int(f["ai_in_mdna"]) == 1 and int(f["ai_adoption_sentences"]) == 1
+    # panel tolerates old True/False outputs
+    df = pd.read_csv(out / "filings.csv", dtype=str)
+    df["ai_spend_sentences"] = "True"
+    df.to_csv(out / "old.csv", index=False)
+    cli.main(["panel", "--filings", str(out / "old.csv"), "--out", str(out / "p.csv")])
+    assert pd.read_csv(out / "p.csv").loc[0, "any_ai_spend"] == 1
+    with pytest.raises(SystemExit):
+        cli.main(["panel", "--filings", str(out / "missing.csv"), "--out", str(out / "p2.csv")])
+
+
+def test_split_item_heading_10q():
+    text = ("PART I. FINANCIAL INFORMATION\nITEM 2.\nMANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS\n"
+            "We will continue to invest in capital expenditures to support our investments in AI training infrastructure.\n"
+            "Management's discussion and analysis of our AI strategy is discussed above, and we use machine learning widely.")
+    tagged = tag_sentences(text, "10-Q")
+    assert [s for s, _ in tagged] == ["mdna", "mdna"]

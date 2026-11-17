@@ -3,12 +3,13 @@
 Filing-level output (one row per filing -> regression panel):
   total_words, ai_total (main AI terms), per-category counts, automation_total,
   ai_per_10k_words, ai_sentences, ai_spend_sentences, ai_adoption_sentences,
-  ai_risk_sentences, ai_dollar_amounts, any_ai (0/1), and ai counts by section.
+  ai_product_sentences, ai_risk_sentences, ai_dollar_amounts, any_ai (0/1), and ai counts by section.
 
 Sentence-level output (one row per AI-mentioning sentence):
   section, the sentence, matched terms, flags:
     spend     -- money/investment language in the same sentence (+ extracted $ amounts)
-    adoption  -- the company describes its own use (we use / deployed / our employees / workflows)
+    adoption  -- the company describes its OWN use (our use of / we deployed / our employees / internal processes)
+    product   -- AI as something the company sells (our products/offerings, customers can use...)
     risk      -- risk/uncertainty language or Risk Factors section (likely boilerplate)
 The flags are deliberately transparent cue-word rules so they can be hand-validated.
 """
@@ -24,11 +25,21 @@ SPEND_RE = re.compile(
     r"\bbudget\w*|\ballocat\w+|\bacqui(?:red?|sition)s?\b|\bpurchas\w+|\bresearch and development\b|\bR&D\b|"
     r"\bcosts? (?:of|related to|associated with)\b|\bproceeds\b|\$\s?\d", re.I)
 DOLLAR_RE = re.compile(r"\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:million|billion|thousand|[MBK])\b)?", re.I)
+# Own/internal use of AI (the study's construct) -- first-person use or the firm's own people/processes.
 ADOPTION_RE = re.compile(
-    r"\bwe (?:use|used|utilize|leverage|have (?:deployed|implemented|integrated|adopted|developed|launched|built)|"
-    r"deployed|implemented|integrated|adopted|developed|launched|built|are (?:using|deploying|implementing|integrating))\b|"
-    r"\bour (?:employees|workforce|associates|engineers|operations|processes|workflows?|internal)\b|"
-    r"\binternal(?:ly)?\b|\bworkflows?\b|\bproductivity\b|\befficienc\w+|\bautomat(?:e|ed|ing) (?:our|certain|manual)\b", re.I)
+    r"\b(?:our|its|the company.s|the firm.s) (?:own )?(?:use|usage|adoption|deployment|integration) of\b|"
+    r"\bwe (?:currently |also |increasingly |now )?(?:use|utilize|leverage|rely on|have (?:deployed|implemented|integrated|"
+    r"adopted|rolled out|begun using)|deployed|implemented|integrated|adopted|rolled out|are (?:using|deploying|"
+    r"implementing|integrating|adopting))\b|"
+    r"\b(?:our|its) (?:employees|workforce|associates|engineers|developers|colleagues|people|operations|back[- ]office|"
+    r"internal \w+|business processes|processes|workflows?|finance (?:team|function|organization)|call cent(?:er|re)s?)\b|"
+    r"\binternal(?:ly)? (?:use|tools?|operations|processes|productivity|efficienc\w+)\b|"
+    r"\b(?:operational|process|cost) efficienc(?:y|ies)\b|\bautomat(?:e|ed|ing) (?:our|certain|manual|internal)\b", re.I)
+# AI as something the firm SELLS (vendors like Microsoft/IBM) -- kept separate from own-use adoption.
+PRODUCT_RE = re.compile(
+    r"\b(?:our|its) (?:\w+ ){0,3}(?:products?|offerings?|platforms?|solutions?|services?|portfolio|features?|capabilities)\b|"
+    r"\b(?:customers|clients|developers|partners|users) (?:can |to )?(?:use|build|deploy|leverage|adopt)\b|"
+    r"\bhelp(?:ing|s)? (?:our )?(?:customers|clients|businesses)\b|\bwe (?:offer|sell|provide|introduced|launched|released)\b", re.I)
 RISK_RE = re.compile(
     r"\brisks?\b|\bcould (?:adversely|harm|negatively)\b|\bmay (?:not|adversely|harm|be subject)\b|\buncertain\w*|"
     r"\bregulat\w+|\bliabilit\w+|\breputational\b|\bthere can be no assurance\b", re.I)
@@ -61,17 +72,20 @@ def measure_filing(tagged: list[tuple[str, str]]) -> tuple[dict, list[dict]]:
         ai_n = hits.total(main_only=True, categories=AI_CATS)
         if ai_n == 0:
             continue  # automation-only / ambiguous-only sentences are counted but not listed
-        sec_counts[section if section in SECTIONS else "other"] += ai_n
+        base_sec = section.removeprefix("exhibit13_")
+        sec_counts[base_sec if base_sec in SECTIONS else "other"] += ai_n
         spend = bool(SPEND_RE.search(sent))
         amounts = DOLLAR_RE.findall(sent) if spend else []
         adoption = bool(ADOPTION_RE.search(sent))
+        product = bool(PRODUCT_RE.search(sent))
         risk = section == "risk_factors" or bool(RISK_RE.search(sent))
-        flags.update(ai=1, spend=spend, adoption=adoption, risk=risk)
+        # ints, not bools: Counter.update() on an empty Counter stores values as-is
+        flags.update(ai=1, spend=int(spend), adoption=int(adoption), product=int(product), risk=int(risk))
         dollars += amounts
         sentences.append({
             "section": section, "sentence": sent[:2000], "ai_terms": "; ".join(sorted(hits.by_term)),
             "ai_term_count": ai_n, "spend": int(spend), "dollar_amounts": "; ".join(amounts),
-            "adoption": int(adoption), "risk": int(risk),
+            "adoption": int(adoption), "product": int(product), "risk": int(risk),
         })
     ai_total = sum(n for t, n in term_counts.items() if _TERM[t].main and _TERM[t].category in AI_CATS)
     row = {
@@ -84,6 +98,7 @@ def measure_filing(tagged: list[tuple[str, str]]) -> tuple[dict, list[dict]]:
         "ai_sentences": flags["ai"],
         "ai_spend_sentences": flags["spend"],
         "ai_adoption_sentences": flags["adoption"],
+        "ai_product_sentences": flags["product"],
         "ai_risk_sentences": flags["risk"],
         "ai_dollar_amounts": "; ".join(dict.fromkeys(dollars)),
         **{f"ai_in_{s}": sec_counts.get(s, 0) for s in SECTIONS},

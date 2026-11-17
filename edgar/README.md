@@ -65,7 +65,10 @@ counts per section (`ai_in_business`, `ai_in_risk_factors`, `ai_in_mdna`, `ai_in
 - `spend`: money/investment language (+ extracted `$` amounts). This is the closest thing to **AI-specific
   spending**: firms almost never report an "AI spend" line item, so the dollar figures have to come from
   sentences like "we invested $45 million in machine-learning infrastructure."
-- `adoption`: the firm describes its own use ("we deployed…", "our employees…", workflows, productivity).
+- `adoption`: the firm describes its **own** use ("our use of AI…", "we deployed…", "our employees / operations /
+  back office…", "process efficiency"). This is the study's construct.
+- `product`: AI as something the firm **sells** ("our AI offerings", "customers can use…"). Kept separate so
+  AI vendors (Microsoft, IBM, Salesforce) don't look like heavy internal adopters just because they sell AI.
 - `risk`: Risk Factors section or risk/regulatory language, so likely boilerplate rather than real use.
 
 This mirrors the "dedicated vs. PR" split from the CEO-statement task: `ai_adoption_sentences` and
@@ -78,10 +81,18 @@ This mirrors the "dedicated vs. PR" split from the CEO-statement task: `ai_adopt
 `DV = b·AI + controls + firm FE + year FE`, SEs clustered by firm. The DV is still open (audit fees, ICW,
 productivity, supply chain…); pass any firm-year CSV with `gvkey` and `year`/`fyear`.
 
+## Pilot (Nov 16, 2026)
+10 companies (MSFT, WMT, JPM, CRM, IBM, DUOL, COIN, F, GS, AMZN), 10-K/10-Q since 2024: 118 filings, 0 errors,
+~3,000 AI sentences. Full-list CIK match: 17,272 operating companies (2,316 funds/ETFs flagged), 13,444 with a
+CIK, 12,438 confident after `--resolve`. Fixes from the pilot: shared-name CIKs, bullet lists, flattened tables,
+cross-reference 10-K layouts, split MD&A headings, adoption vs. product.
+
 ## Known limits
 - **CIK matching**: names are matched against every name EDGAR has recorded. Check rows with
   `needs_check = yes`. More reliable: export `cik` from WRDS `comp.company` into the empty CIK column, and
   those rows are used as-is.
 - Section detection is heading-based; unusual layouts fall back to `other` (counts are still correct).
+- Short 10-Ks (< 25k words) that incorporate the annual report by reference get **Exhibit 13** pulled in
+  automatically (`included_exhibit13 = 1`; its sentences are tagged `exhibit13_<section>`).
 - The keyword measure counts mentions, not dollars; validate a random sample of `ai_sentences.csv` by hand
   before relying on the flags.
